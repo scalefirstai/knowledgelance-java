@@ -1,0 +1,32 @@
+{{- $root := . }}
+{{- range $job := list (dict "name" "reconcile" "schedule" .Values.reconcile.schedule "args" (list "reconcile" "--recheck-acls"))
+                       (dict "name" "optimize" "schedule" .Values.optimize.schedule "args" (list "optimize")) }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "kl.name" $root }}-{{ $job.name }}
+spec:
+  schedule: {{ $job.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          serviceAccountName: kl-indexer
+          restartPolicy: OnFailure
+          securityContext: {runAsNonRoot: true, runAsUser: 10001}
+          containers:
+            - name: {{ $job.name }}
+              image: {{ include "kl.image" $root }}
+              args: {{ toJson $job.args }}
+              env: {{- include "kl.env" $root | nindent 16 }}
+              volumeMounts:
+                {{- include "kl.configMount" $root | nindent 16 }}
+                - {name: cache, mountPath: /cache}
+          volumes:
+            {{- include "kl.configVolume" $root | nindent 12 }}
+            - name: cache
+              emptyDir: {}
+{{- end }}

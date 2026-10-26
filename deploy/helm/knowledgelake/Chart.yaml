@@ -1,0 +1,6 @@
+apiVersion: v2
+name: knowledgelake-java
+description: Hybrid search over OKF bundles in S3 (REST, SQL, MCP) - Java/Lucene implementation
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

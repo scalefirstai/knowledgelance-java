@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kl.name" . }}-query
+  labels: {app.kubernetes.io/name: knowledgelake, app.kubernetes.io/component: query}
+spec:
+  replicas: {{ .Values.query.replicas }}
+  selector:
+    matchLabels: {app.kubernetes.io/name: knowledgelake, app.kubernetes.io/component: query}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: knowledgelake, app.kubernetes.io/component: query}
+      annotations:
+        checksum/config: {{ toYaml .Values.config | sha256sum }}
+    spec:
+      serviceAccountName: kl-query
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001}
+      containers:
+        - name: query
+          image: {{ include "kl.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["serve", "--port", "{{ .Values.service.port }}"]
+          env: {{- include "kl.env" . | nindent 12 }}
+          ports: [{name: http, containerPort: {{ .Values.service.port }}}]
+          readinessProbe: {httpGet: {path: /readyz, port: http}, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 20}
+          resources: {{- toYaml .Values.query.resources | nindent 12 }}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true}
+          volumeMounts:
+            {{- include "kl.configMount" . | nindent 12 }}
+            - {name: cache, mountPath: /cache}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        {{- include "kl.configVolume" . | nindent 8 }}
+        - name: cache
+          emptyDir: {sizeLimit: {{ .Values.query.cacheSize }}}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kl.name" . }}
+spec:
+  selector: {app.kubernetes.io/name: knowledgelake, app.kubernetes.io/component: query}
+  ports: [{name: http, port: {{ .Values.service.port }}, targetPort: http}]

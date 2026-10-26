@@ -1,0 +1,23 @@
+# Golden queries for the sample bundles. Run: kl -c examples/kl.yaml eval examples/golden.yaml
+queries:
+  - q: what happens to trades booked after the 16:00 cut-off
+    relevant: {confluence/spaces/NAV/nav-cutoff-runbook: 2, jira/projects/FUND/FUND-1423: 1}
+    groups: [nav-ops]
+  - q: FUND-1423
+    relevant: [jira/projects/FUND/FUND-1423]
+    groups: [nav-ops]
+  - q: which FX fix is used to value multi-currency funds
+    relevant: {confluence/spaces/NAV/fx-rates-sourcing: 2, jira/projects/FUND/FUND-1388: 1}
+    groups: [nav-ops]
+  - q: why is the cut-off checked in CET by the accounting platform
+    relevant: {confluence/spaces/NAV/late-trades-decision: 2, jira/projects/FUND/FUND-1423: 1}
+    groups: [nav-ops]
+  - q: swing factor thresholds bond funds
+    relevant: [jira/projects/FUND/FUND-1450]
+    groups: [fund-ops]
+  - q: deadline for delivering the final NAV under the administrator contract
+    relevant: [legal/contracts/administrator-agreement]
+    groups: [legal]
+  - q: who signs off a large late trade
+    relevant: [confluence/spaces/NAV/nav-cutoff-runbook]
+    groups: [nav-ops]

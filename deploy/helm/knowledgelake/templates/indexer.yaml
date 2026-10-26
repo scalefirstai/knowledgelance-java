@@ -1,0 +1,33 @@
+{{- if .Values.indexer.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kl.name" . }}-indexer
+  labels: {app.kubernetes.io/name: knowledgelake, app.kubernetes.io/component: indexer}
+spec:
+  replicas: 1                 # single writer per partition
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app.kubernetes.io/name: knowledgelake, app.kubernetes.io/component: indexer}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: knowledgelake, app.kubernetes.io/component: indexer}
+      annotations:
+        checksum/config: {{ toYaml .Values.config | sha256sum }}
+    spec:
+      serviceAccountName: kl-indexer
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001}
+      containers:
+        - name: indexer
+          image: {{ include "kl.image" . }}
+          args: ["watch"]
+          env: {{- include "kl.env" . | nindent 12 }}
+          resources: {{- toYaml .Values.indexer.resources | nindent 12 }}
+          volumeMounts:
+            {{- include "kl.configMount" . | nindent 12 }}
+            - {name: cache, mountPath: /cache}
+      volumes:
+        {{- include "kl.configVolume" . | nindent 8 }}
+        - name: cache
+          emptyDir: {sizeLimit: {{ .Values.indexer.cacheSize }}}
+{{- end }}

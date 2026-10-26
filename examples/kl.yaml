@@ -1,0 +1,39 @@
+# Local demo: bundles and indexes on disk, real ONNX models (small, CPU-friendly).
+# Same schema as the Python implementation. Production model pair: deploy/kl.prod.yaml.
+bundles_uri: ./examples/bundles
+kl_uri: ./.kl
+
+bundles:
+  jira:
+    default_acl: [fund-ops]        # issues without `acl` inherit this
+  confluence:
+    default_acl: []                # fail closed: pages without `acl` are visible to nobody
+  legal:
+    default_acl: [legal]
+    partition: restricted          # own Lucene indexes (and, in AWS, its own IAM role)
+
+partitions:
+  restricted:
+    uri: ./.kl/lucene/restricted
+    required_groups: [legal]
+
+embedding:
+  provider: onnx
+  model: Xenova/bge-small-en-v1.5
+  onnx_file: onnx/model_quantized.onnx
+  dim: 384
+  pooling: cls
+
+rerank:
+  provider: onnx
+  model: Xenova/ms-marco-MiniLM-L-6-v2
+  onnx_file: onnx/model_quantized.onnx
+  top_n: 50
+
+ranking:
+  recency_weight: 0.002
+
+auth:
+  mode: header                     # gateway sets X-KL-User / X-KL-Groups
+  static_groups:
+    alice: [fund-ops, nav-ops]

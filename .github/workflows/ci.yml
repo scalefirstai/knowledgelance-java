@@ -1,0 +1,27 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: "21", cache: maven}
+      - uses: actions/cache@v4   # tokenizer/ONNX parity tests skip when models are not cached
+        with: {path: ~/.cache/huggingface, key: hf-models-v1}
+      - run: mvn -B verify
+
+  relevance-gate:
+    # Every ranking or model change must hold nDCG@10 / recall@50 on the golden set.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: "21", cache: maven}
+      - uses: actions/cache@v4
+        with: {path: ~/.cache/huggingface, key: hf-models-v1}
+      - run: mvn -B -q package -DskipTests
+      - run: bin/kl -c examples/kl.yaml rebuild
+      - run: >
+          bin/kl -c examples/kl.yaml eval examples/golden.yaml --warmup 3
+          --min-ndcg 0.9 --min-recall 0.95 --baseline examples/eval-baseline.json --max-drop 0.02

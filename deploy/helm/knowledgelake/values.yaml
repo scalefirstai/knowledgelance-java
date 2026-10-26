@@ -1,0 +1,44 @@
+image:
+  repository: ghcr.io/example/knowledgelake-java
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+# Rendered verbatim into kl.yaml (see deploy/kl.prod.yaml for a full example).
+config:
+  bundles_uri: s3://kl-knowledge/bundles
+  kl_uri: s3://kl-knowledge/_kl
+  s3: {region: eu-west-1}
+  embedding: {provider: onnx, model: Xenova/bge-small-en-v1.5, onnx_file: onnx/model_quantized.onnx, dim: 384}
+  rerank: {provider: onnx, model: Xenova/ms-marco-MiniLM-L-6-v2, onnx_file: onnx/model_quantized.onnx}
+  events: {sqs_queue_url: ""}
+  cache: {dir: /cache, refresh_interval_s: 15}   # query: Lucene mirror; indexer: working copy
+  auth: {mode: header}
+
+# IRSA role ARNs from the Terraform module outputs (role_arns.indexer / role_arns.query)
+serviceAccounts:
+  indexer: {roleArn: ""}
+  query: {roleArn: ""}
+
+query:
+  replicas: 2
+  resources:
+    requests: {cpu: "1", memory: 2Gi}
+    limits: {memory: 4Gi}
+  cacheSize: 20Gi          # emptyDir on local NVMe holding the Lucene mirror
+
+indexer:
+  enabled: true
+  cacheSize: 20Gi          # working copy of the indexes it publishes to S3
+  resources:
+    requests: {cpu: "1", memory: 2Gi}
+    limits: {memory: 4Gi}
+
+reconcile:
+  schedule: "15 2 * * *"   # nightly list-and-diff, re-reading ACLs
+optimize:
+  schedule: "45 */6 * * *" # FTS rebuild + compaction
+
+service:
+  port: 8080
+
+javaOpts: "-XX:MaxRAMPercentage=75 -XX:+UseG1GC"

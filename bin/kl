@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# Run the KnowledgeLake CLI from the shaded jar (build with: mvn -q package -DskipTests)
+DIR=$(cd "$(dirname "$0")/.." && pwd)
+JAR=$(ls "$DIR"/target/knowledgelake-*-all.jar 2>/dev/null | head -1)
+[ -z "$JAR" ] && { echo "build first: mvn -q package -DskipTests" >&2; exit 1; }
+exec java --enable-native-access=ALL-UNNAMED --add-modules jdk.incubator.vector $KL_JAVA_OPTS -jar "$JAR" "$@"

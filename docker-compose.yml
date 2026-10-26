@@ -1,0 +1,32 @@
+# Local end-to-end stack (Java/Lucene) on LocalStack: S3 + SQS bucket notifications, an indexer
+# following the change feed, and the query tier (REST + MCP). Same event path as production.
+#   docker compose up --build
+#   curl -s localhost:8080/v1/search -H 'X-KL-User: alice' -H 'X-KL-Groups: nav-ops' \
+#        -H 'content-type: application/json' -d '{"q":"late trades after cut-off"}'
+services:
+  localstack:
+    image: localstack/localstack:3.8
+    environment: {SERVICES: "s3,sqs"}
+    ports: ["4566:4566"]
+    volumes:
+      - ./examples/bundles:/seed:ro
+      - ./deploy/localstack-init.sh:/etc/localstack/init/ready.d/kl-init.sh:ro
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/kl-seeded"]
+      interval: 3s
+      retries: 40
+
+  indexer:
+    build: .
+    depends_on: {localstack: {condition: service_healthy}}
+    environment: {KL_CONFIG: /etc/kl/kl.yaml}
+    volumes: ["./deploy/kl.compose.yaml:/etc/kl/kl.yaml:ro"]
+    entrypoint: ["sh", "-c", "kl index && exec kl watch"]   # full pass once, then follow SQS
+
+  query:
+    build: .
+    depends_on: {localstack: {condition: service_healthy}}
+    environment: {KL_CONFIG: /etc/kl/kl.yaml}
+    volumes: ["./deploy/kl.compose.yaml:/etc/kl/kl.yaml:ro"]
+    ports: ["8080:8080"]
+    command: ["serve", "--port", "8080"]

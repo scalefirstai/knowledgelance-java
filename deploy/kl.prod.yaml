@@ -1,0 +1,31 @@
+# Production shape (AWS): spec defaults — bge-m3 + bge-reranker-v2-m3 (int8 ONNX), SQS change feed,
+# OIDC at the gateway, query pods with a local NVMe mirror of the Lucene indexes.
+bundles_uri: s3://kl-knowledge/bundles
+kl_uri: s3://kl-knowledge/_kl
+s3: {region: eu-west-1}
+bundles:
+  jira: {default_acl: []}
+  confluence: {default_acl: []}
+  sharepoint: {default_acl: []}
+embedding:
+  provider: onnx
+  model: /models/bge-m3            # baked into the image; HF repo BAAI/bge-m3 (onnx/model.onnx + model.onnx_data)
+  onnx_file: onnx/model.onnx
+  dim: 1024
+  pooling: cls
+  max_length: 8192
+  query_prefix: ""
+rerank:
+  provider: onnx
+  model: /models/bge-reranker-v2-m3  # HF repo onnx-community/bge-reranker-v2-m3-ONNX
+  onnx_file: onnx/model_int8.onnx
+  top_n: 50
+ranking: {recency_weight: 0.002}
+events: {sqs_queue_url: "https://sqs.eu-west-1.amazonaws.com/123456789012/kl-bundle-events"}
+cache: {dir: /cache, refresh_interval_s: 15}
+auth:
+  mode: oidc
+  oidc_issuer: https://login.microsoftonline.com/<tenant>/v2.0
+  oidc_audience: api://knowledgelake
+  oidc_jwks_url: https://login.microsoftonline.com/<tenant>/discovery/v2.0/keys
+  groups_claim: groups
